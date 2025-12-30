@@ -1,0 +1,206 @@
+import fs from 'fs';
+import path from 'path';
+import YAML from 'yaml';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+export type ApiConfig = {
+  key?: string;
+  base_url: string;
+  timeout: number;
+};
+
+export type ModelConfig = {
+  default: string;
+  search_heavy: string;
+  reasoning: string;
+  fast: string;
+  deep_research: string;
+};
+
+export type AgentConfig = {
+  max_iterations: number;
+  temperature: number;
+  max_tokens: number;
+  top_p: number;
+};
+
+export type ResearchConfig = {
+  search_mode: 'low' | 'medium' | 'high';
+  include_citations: boolean;
+  focus_on_recent: boolean;
+};
+
+export type OutputConfig = {
+  format: 'markdown' | 'json' | 'plain';
+  stream: boolean;
+  verbose: boolean;
+};
+
+export type EnigmaConfig = {
+  api: ApiConfig;
+  models: ModelConfig;
+  agent: AgentConfig;
+  research: ResearchConfig;
+  output: OutputConfig;
+};
+
+export const defaultConfig: EnigmaConfig = {
+  api: {
+    key: undefined,
+    base_url: 'https://api.perplexity.ai',
+    timeout: 60000,
+  },
+  models: {
+    default: 'sonar-pro',
+    search_heavy: 'sonar-pro',
+    reasoning: 'sonar-reasoning-pro',
+    fast: 'sonar',
+    deep_research: 'sonar-deep-research',
+  },
+  agent: {
+    max_iterations: 10,
+    temperature: 0.3,
+    max_tokens: 4096,
+    top_p: 0.9,
+  },
+  research: {
+    search_mode: 'medium',
+    include_citations: true,
+    focus_on_recent: true,
+  },
+  output: {
+    format: 'markdown',
+    stream: true,
+    verbose: false,
+  },
+};
+
+const CONFIG_FILE = '.pplxrc';
+
+const envMap: Partial<Record<keyof ApiConfig | keyof ModelConfig | keyof AgentConfig | keyof ResearchConfig | keyof OutputConfig, string>> = {
+  key: 'PPLX_API_KEY',
+  base_url: 'PPLX_API_BASE_URL',
+  timeout: 'PPLX_API_TIMEOUT',
+  default: 'PPLX_MODEL_DEFAULT',
+  search_heavy: 'PPLX_MODEL_SEARCH_HEAVY',
+  reasoning: 'PPLX_MODEL_REASONING',
+  fast: 'PPLX_MODEL_FAST',
+  deep_research: 'PPLX_MODEL_DEEP_RESEARCH',
+  max_iterations: 'PPLX_AGENT_MAX_ITERATIONS',
+  temperature: 'PPLX_AGENT_TEMPERATURE',
+  max_tokens: 'PPLX_AGENT_MAX_TOKENS',
+  search_mode: 'PPLX_SEARCH_MODE',
+  format: 'PPLX_OUTPUT_FORMAT',
+  stream: 'PPLX_OUTPUT_STREAM',
+  verbose: 'PPLX_VERBOSE',
+};
+
+const parseBoolean = (value: string | undefined): boolean | undefined => {
+  if (value === undefined) return undefined;
+  return value === 'true' || value === '1';
+};
+
+const parseNumber = (value: string | undefined): number | undefined => {
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const deepMerge = (base: any, override: any): any => {
+  if (typeof override !== 'object' || override === null) return base;
+  const result: any = Array.isArray(base) ? [...base] : { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) {
+      result[key] = [...value];
+      continue;
+    }
+    if (typeof value === 'object' && value !== null) {
+      result[key] = deepMerge((result as any)[key] ?? {}, value);
+      continue;
+    }
+    (result as any)[key] = value;
+  }
+  return result;
+};
+
+const loadFileConfig = (baseDir: string): Partial<EnigmaConfig> => {
+  const filePath = path.join(baseDir, CONFIG_FILE);
+  if (!fs.existsSync(filePath)) return {};
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  try {
+    return YAML.parse(raw) ?? {};
+  } catch (err) {
+    throw new Error(`Unable to parse ${CONFIG_FILE}: ${(err as Error).message}`);
+  }
+};
+
+const applyEnvOverrides = (config: EnigmaConfig): EnigmaConfig => {
+  const envOverrides: Partial<EnigmaConfig> = { api: {}, models: {}, agent: {}, research: {}, output: {} } as EnigmaConfig;
+
+  for (const [key, envKey] of Object.entries(envMap)) {
+    const value = process.env[envKey as string];
+    if (value === undefined) continue;
+
+    switch (key) {
+      case 'key':
+        (envOverrides.api as ApiConfig).key = value;
+        break;
+      case 'base_url':
+        (envOverrides.api as ApiConfig).base_url = value;
+        break;
+      case 'timeout':
+        (envOverrides.api as ApiConfig).timeout = parseNumber(value) ?? config.api.timeout;
+        break;
+      case 'default':
+      case 'search_heavy':
+      case 'reasoning':
+      case 'fast':
+      case 'deep_research':
+        (envOverrides.models as any)[key] = value;
+        break;
+      case 'max_iterations':
+        (envOverrides.agent as AgentConfig).max_iterations = parseNumber(value) ?? config.agent.max_iterations;
+        break;
+      case 'temperature':
+        (envOverrides.agent as AgentConfig).temperature = parseNumber(value) ?? config.agent.temperature;
+        break;
+      case 'max_tokens':
+        (envOverrides.agent as AgentConfig).max_tokens = parseNumber(value) ?? config.agent.max_tokens;
+        break;
+      case 'search_mode':
+        (envOverrides.research as ResearchConfig).search_mode = value as ResearchConfig['search_mode'];
+        break;
+      case 'format':
+        (envOverrides.output as OutputConfig).format = value as OutputConfig['format'];
+        break;
+      case 'stream':
+        (envOverrides.output as OutputConfig).stream = parseBoolean(value) ?? config.output.stream;
+        break;
+      case 'verbose':
+        (envOverrides.output as OutputConfig).verbose = parseBoolean(value) ?? config.output.verbose;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return deepMerge(config, envOverrides);
+};
+
+export const loadConfig = (baseDir = process.cwd()): EnigmaConfig => {
+  const fileConfig = loadFileConfig(baseDir);
+  const merged = deepMerge(defaultConfig, fileConfig);
+  return applyEnvOverrides(merged);
+};
+
+export const resolveApiKey = (config: EnigmaConfig): string | undefined => {
+  return process.env.PPLX_API_KEY ?? config.api.key;
+};
+
+export const saveConfig = (config: EnigmaConfig, targetPath = path.join(process.cwd(), CONFIG_FILE)) => {
+  const yaml = YAML.stringify(config);
+  fs.writeFileSync(targetPath, yaml, 'utf-8');
+};

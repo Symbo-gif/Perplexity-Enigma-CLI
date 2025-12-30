@@ -29,7 +29,7 @@ describe('askPerplexity', () => {
       {
         model: 'sonar-reasoning',
         messages: [{ role: 'user', content: 'test question' }],
-        stream: true,
+        stream: false,
         search_mode: 'medium',
       },
       expect.objectContaining({

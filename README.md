@@ -32,7 +32,9 @@ Enigma reads settings from (in order of precedence):
 
 1. Environment variables (e.g. `PPLX_API_KEY`, `PPLX_MODEL_DEFAULT`, `PPLX_OUTPUT_STREAM`)
 2. A YAML file at `.pplxrc` (see `.pplxrc.example`)
-3. Built-in defaults (Sonar Pro, streaming output, medium search)
+3. Built-in defaults (Sonar Pro, non-streaming output, medium search)
+
+> Note: Streaming responses are not yet supported in this CLI. If `output.stream` is set to `true`, the request is automatically sent in non-streaming mode.
 
 Create your own config by copying `.pplxrc.example`:
 

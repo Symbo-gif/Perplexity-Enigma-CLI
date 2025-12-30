@@ -2,19 +2,30 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import readlineSync from 'readline-sync';
-import { loadConfig, saveConfig } from './config.js';
+import { loadConfig, parseSearchMode, saveConfig } from './config.js';
 import { askPerplexity, formatError, printAnswer, withSpinner } from './perplexity.js';
 
 const program = new Command();
 program.name('enigma').description('Perplexity - Enigma CLI').version('1.0.0');
 
-const handleQuestion = async (question: string, options: { model?: string; searchMode?: string }) => {
+const normalizeAskOptions = (options: { model?: string; searchMode?: string }) => {
+  const normalizedSearchMode = parseSearchMode(options.searchMode);
+  if (options.searchMode && !normalizedSearchMode) {
+    console.error(chalk.yellow(`Search mode "${options.searchMode}" is invalid. Using config default.`));
+  }
+  return {
+    model: options.model,
+    searchMode: normalizedSearchMode,
+  };
+};
+
+const handleQuestion = async (question: string, options: { model?: string; searchMode?: 'low' | 'medium' | 'high' }) => {
   const config = loadConfig();
   try {
     const answer = await withSpinner('Contacting Perplexity...', () =>
       askPerplexity(question, config, {
         model: options.model,
-        searchMode: options.searchMode as any,
+        searchMode: options.searchMode,
       }),
     );
     printAnswer(answer);
@@ -35,7 +46,7 @@ program
       console.error(chalk.yellow('No question provided. Exiting.'));
       return;
     }
-    await handleQuestion(question, options);
+    await handleQuestion(question, normalizeAskOptions(options));
   });
 
 program
@@ -46,7 +57,7 @@ program
   .option('-s, --search-mode <mode>', 'Search mode: low | medium | high')
   .action(async (questionParts: string[], options) => {
     const question = questionParts.join(' ');
-    await handleQuestion(question, options);
+    await handleQuestion(question, normalizeAskOptions(options));
   });
 
 program

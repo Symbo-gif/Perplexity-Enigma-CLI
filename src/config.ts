@@ -72,14 +72,27 @@ export const defaultConfig: EnigmaConfig = {
   },
   output: {
     format: 'markdown',
-    stream: true,
+    stream: false,
     verbose: false,
   },
 };
 
 const CONFIG_FILE = '.pplxrc';
+type EnvKey =
+  | keyof ApiConfig
+  | keyof ModelConfig
+  | keyof AgentConfig
+  | keyof ResearchConfig
+  | keyof OutputConfig;
+type PartialConfig = {
+  api?: Partial<ApiConfig>;
+  models?: Partial<ModelConfig>;
+  agent?: Partial<AgentConfig>;
+  research?: Partial<ResearchConfig>;
+  output?: Partial<OutputConfig>;
+};
 
-const envMap: Partial<Record<keyof ApiConfig | keyof ModelConfig | keyof AgentConfig | keyof ResearchConfig | keyof OutputConfig, string>> = {
+const envMap: Record<EnvKey, string> = {
   key: 'PPLX_API_KEY',
   base_url: 'PPLX_API_BASE_URL',
   timeout: 'PPLX_API_TIMEOUT',
@@ -91,7 +104,10 @@ const envMap: Partial<Record<keyof ApiConfig | keyof ModelConfig | keyof AgentCo
   max_iterations: 'PPLX_AGENT_MAX_ITERATIONS',
   temperature: 'PPLX_AGENT_TEMPERATURE',
   max_tokens: 'PPLX_AGENT_MAX_TOKENS',
+  top_p: 'PPLX_AGENT_TOP_P',
   search_mode: 'PPLX_SEARCH_MODE',
+  include_citations: 'PPLX_INCLUDE_CITATIONS',
+  focus_on_recent: 'PPLX_FOCUS_ON_RECENT',
   format: 'PPLX_OUTPUT_FORMAT',
   stream: 'PPLX_OUTPUT_STREAM',
   verbose: 'PPLX_VERBOSE',
@@ -108,9 +124,21 @@ const parseNumber = (value: string | undefined): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const deepMerge = (base: any, override: any): any => {
+export const parseSearchMode = (value: string | undefined): ResearchConfig['search_mode'] | undefined => {
+  if (!value) return undefined;
+  if (value === 'low' || value === 'medium' || value === 'high') return value;
+  return undefined;
+};
+
+const parseOutputFormat = (value: string | undefined): OutputConfig['format'] | undefined => {
+  if (!value) return undefined;
+  if (value === 'markdown' || value === 'json' || value === 'plain') return value;
+  return undefined;
+};
+
+const deepMerge = <T>(base: T, override: Partial<T>): T => {
   if (typeof override !== 'object' || override === null) return base;
-  const result: any = Array.isArray(base) ? [...base] : { ...base };
+  const result: any = Array.isArray(base) ? [...(base as any)] : { ...(base as any) };
   for (const [key, value] of Object.entries(override)) {
     if (value === undefined) continue;
     if (Array.isArray(value)) {
@@ -118,12 +146,12 @@ const deepMerge = (base: any, override: any): any => {
       continue;
     }
     if (typeof value === 'object' && value !== null) {
-      result[key] = deepMerge((result as any)[key] ?? {}, value);
+      result[key] = deepMerge((result as any)[key] ?? {}, value as any);
       continue;
     }
     (result as any)[key] = value;
   }
-  return result;
+  return result as T;
 };
 
 const loadFileConfig = (baseDir: string): Partial<EnigmaConfig> => {
@@ -138,7 +166,7 @@ const loadFileConfig = (baseDir: string): Partial<EnigmaConfig> => {
 };
 
 const applyEnvOverrides = (config: EnigmaConfig): EnigmaConfig => {
-  const envOverrides: Partial<EnigmaConfig> = { api: {}, models: {}, agent: {}, research: {}, output: {} } as EnigmaConfig;
+  const envOverrides: PartialConfig = { api: {}, models: {}, agent: {}, research: {}, output: {} };
 
   for (const [key, envKey] of Object.entries(envMap)) {
     const value = process.env[envKey as string];
@@ -170,11 +198,20 @@ const applyEnvOverrides = (config: EnigmaConfig): EnigmaConfig => {
       case 'max_tokens':
         (envOverrides.agent as AgentConfig).max_tokens = parseNumber(value) ?? config.agent.max_tokens;
         break;
+      case 'top_p':
+        (envOverrides.agent as AgentConfig).top_p = parseNumber(value) ?? config.agent.top_p;
+        break;
       case 'search_mode':
-        (envOverrides.research as ResearchConfig).search_mode = value as ResearchConfig['search_mode'];
+        (envOverrides.research as ResearchConfig).search_mode = parseSearchMode(value) ?? config.research.search_mode;
+        break;
+      case 'include_citations':
+        (envOverrides.research as ResearchConfig).include_citations = parseBoolean(value) ?? config.research.include_citations;
+        break;
+      case 'focus_on_recent':
+        (envOverrides.research as ResearchConfig).focus_on_recent = parseBoolean(value) ?? config.research.focus_on_recent;
         break;
       case 'format':
-        (envOverrides.output as OutputConfig).format = value as OutputConfig['format'];
+        (envOverrides.output as OutputConfig).format = parseOutputFormat(value) ?? config.output.format;
         break;
       case 'stream':
         (envOverrides.output as OutputConfig).stream = parseBoolean(value) ?? config.output.stream;
@@ -187,7 +224,7 @@ const applyEnvOverrides = (config: EnigmaConfig): EnigmaConfig => {
     }
   }
 
-  return deepMerge(config, envOverrides);
+  return deepMerge<EnigmaConfig>(config, envOverrides as Partial<EnigmaConfig>);
 };
 
 export const loadConfig = (baseDir = process.cwd()): EnigmaConfig => {

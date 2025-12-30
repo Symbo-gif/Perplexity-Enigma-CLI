@@ -7,4 +7,4 @@ if (-not (Test-Path $EntryPoint)) {
     exit 1
 }
 
-node $EntryPoint @args
+node $EntryPoint -- @args

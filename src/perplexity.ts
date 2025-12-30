@@ -21,9 +21,13 @@ export const askPerplexity = async (
   const payload = {
     model: options.model ?? config.models.default,
     messages: [{ role: 'user', content: question }],
-    stream: config.output.stream,
+    stream: false,
     search_mode: options.searchMode ?? config.research.search_mode,
   };
+
+  if (config.output.stream) {
+    console.warn(chalk.yellow('Streaming responses are not yet supported. Falling back to non-streaming mode.'));
+  }
 
   const response = await axios.post(`${config.api.base_url}/chat/completions`, payload, {
     headers: {
@@ -59,7 +63,13 @@ export const formatError = (error: unknown): string => {
     const detail = error.response?.data?.error ?? error.message;
     return status ? `API error (${status}): ${detail}` : `API error: ${detail}`;
   }
-  return (error as Error).message ?? String(error);
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return JSON.stringify(error);
 };
 
 export const printAnswer = (answer: string) => {

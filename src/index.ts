@@ -48,8 +48,8 @@ const startInteractiveSession = async (
   console.log(chalk.cyan('\nInteractive mode. Type "exit" to quit.\n'));
 
   while (true) {
-    const question = prompt('> ');
-    const trimmed = question.trim();
+    const input = prompt('> ');
+    const trimmed = input.trim();
     if (!trimmed) {
       console.log(chalk.yellow('Please enter a question or type "exit" to quit.'));
       continue;
@@ -62,10 +62,9 @@ const startInteractiveSession = async (
     }
 
     try {
-      await ask(question, options);
+      await ask(trimmed, options);
     } catch (error) {
       console.error(chalk.red(formatError(error)));
-      process.exitCode = 1;
     }
   }
 };

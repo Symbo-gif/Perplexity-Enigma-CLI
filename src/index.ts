@@ -37,6 +37,9 @@ const handleQuestion = async (question: string, options: { model?: string; searc
   }
 };
 
+/**
+ * Runs the interactive prompt loop, repeatedly asking questions until the user exits.
+ */
 const startInteractiveSession = async (
   options: NormalizedAskOptions,
   prompt: (query: string) => string = readlineSync.question,
@@ -58,15 +61,11 @@ const startInteractiveSession = async (
       break;
     }
 
-    if (ask === handleQuestion) {
+    try {
       await ask(question, options);
-    } else {
-      try {
-        await ask(question, options);
-      } catch (error) {
-        console.error(chalk.red(formatError(error)));
-        process.exitCode = 1;
-      }
+    } catch (error) {
+      console.error(chalk.red(formatError(error)));
+      process.exitCode = 1;
     }
   }
 };

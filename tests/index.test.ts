@@ -4,7 +4,12 @@ import { startInteractiveSession } from '../src/index.js';
 describe('startInteractiveSession', () => {
   it('keeps prompting until an exit command is entered', async () => {
     const prompts = ['First question', 'Second question', 'exit'];
-    const promptFn = vi.fn().mockImplementation(() => prompts.shift() ?? 'exit');
+    const promptFn = vi.fn().mockImplementation(() => {
+      if (prompts.length === 0) {
+        throw new Error('Unexpected prompt call');
+      }
+      return prompts.shift()!;
+    });
     const ask = vi.fn().mockResolvedValue(undefined);
 
     await startInteractiveSession({}, promptFn, ask);
@@ -17,7 +22,12 @@ describe('startInteractiveSession', () => {
 
   it('ignores blank input and keeps the session alive', async () => {
     const prompts = ['   ', 'quit'];
-    const promptFn = vi.fn().mockImplementation(() => prompts.shift() ?? 'quit');
+    const promptFn = vi.fn().mockImplementation(() => {
+      if (prompts.length === 0) {
+        throw new Error('Unexpected prompt call');
+      }
+      return prompts.shift()!;
+    });
     const ask = vi.fn().mockResolvedValue(undefined);
 
     await startInteractiveSession({}, promptFn, ask);

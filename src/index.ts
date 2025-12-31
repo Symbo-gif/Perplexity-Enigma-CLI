@@ -116,7 +116,7 @@ program
     }
   });
 
-if (process.env.VITEST !== 'true') {
+if (process.env.NODE_ENV !== 'test') {
   program.parseAsync(process.argv);
 }
 

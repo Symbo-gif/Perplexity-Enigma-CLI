@@ -8,7 +8,15 @@ import { askPerplexity, formatError, printAnswer, withSpinner } from './perplexi
 const program = new Command();
 program.name('enigma').description('Perplexity - Enigma CLI').version('1.0.0');
 
-const normalizeAskOptions = (options: { model?: string; searchMode?: string }) => {
+type NormalizedAskOptions = { model?: string; searchMode?: ReturnType<typeof parseSearchMode> };
+
+const logFormattedError = (error: unknown) => {
+  console.error(chalk.red(formatError(error)));
+};
+
+const EXIT_INSTRUCTIONS = 'Type "exit" or "quit" to leave.';
+
+const normalizeAskOptions = (options: { model?: string; searchMode?: string }): NormalizedAskOptions => {
   const normalizedSearchMode = parseSearchMode(options.searchMode);
   if (options.searchMode && !normalizedSearchMode) {
     console.error(chalk.yellow(`Search mode "${options.searchMode}" is invalid. Using config default.`));
@@ -19,7 +27,7 @@ const normalizeAskOptions = (options: { model?: string; searchMode?: string }) =
   };
 };
 
-const handleQuestion = async (question: string, options: { model?: string; searchMode?: 'low' | 'medium' | 'high' }) => {
+const handleQuestion = async (question: string, options: NormalizedAskOptions) => {
   const config = loadConfig();
   try {
     const answer = await withSpinner('Contacting Perplexity...', () =>
@@ -30,8 +38,41 @@ const handleQuestion = async (question: string, options: { model?: string; searc
     );
     printAnswer(answer);
   } catch (error) {
-    console.error(chalk.red(formatError(error)));
+    logFormattedError(error);
     process.exitCode = 1;
+  }
+};
+
+/**
+ * Runs the interactive prompt loop, repeatedly asking questions until the user exits.
+ */
+const startInteractiveSession = async (
+  options: NormalizedAskOptions,
+  prompt: (query: string) => string = readlineSync.question,
+  ask: (question: string, opts: NormalizedAskOptions) => Promise<void> = handleQuestion,
+) => {
+  console.log(chalk.cyan(`\nInteractive mode. ${EXIT_INSTRUCTIONS}\n`));
+
+  while (true) {
+    const input = prompt('> ');
+    const trimmed = input.trim();
+    if (!trimmed) {
+      console.log(chalk.yellow(`Please enter a question or ${EXIT_INSTRUCTIONS.toLowerCase()}`));
+      continue;
+    }
+
+    const lower = trimmed.toLowerCase();
+    if (lower === 'exit' || lower === 'quit') {
+      console.log(chalk.cyan('Goodbye!'));
+      break;
+    }
+
+    try {
+      await ask(trimmed, options);
+    } catch (error) {
+      logFormattedError(error);
+      console.error(chalk.yellow(`An error occurred. Please try again or ${EXIT_INSTRUCTIONS.toLowerCase()}`));
+    }
   }
 };
 
@@ -40,13 +81,19 @@ program
   .option('-m, --model <model>', 'Model to use')
   .option('-s, --search-mode <mode>', 'Search mode: low | medium | high')
   .action(async (questionParts: string[], options) => {
-    const question =
-      questionParts.length > 0 ? questionParts.join(' ') : readlineSync.question('What would you like to ask Perplexity?\n> ');
+    const normalizedOptions = normalizeAskOptions(options);
+
+    if (questionParts.length === 0) {
+      await startInteractiveSession(normalizedOptions);
+      return;
+    }
+
+    const question = questionParts.join(' ');
     if (!question.trim()) {
       console.error(chalk.yellow('No question provided. Exiting.'));
       return;
     }
-    await handleQuestion(question, normalizeAskOptions(options));
+    await handleQuestion(question, normalizedOptions);
   });
 
 program
@@ -75,4 +122,8 @@ program
     }
   });
 
-program.parseAsync(process.argv);
+if (process.env.NODE_ENV !== 'test') {
+  program.parseAsync(process.argv);
+}
+
+export { normalizeAskOptions, handleQuestion, startInteractiveSession };

@@ -40,7 +40,7 @@ const handleQuestion = async (question: string, options: { model?: string; searc
 const startInteractiveSession = async (
   options: NormalizedAskOptions,
   prompt: (query: string) => string = (query) => readlineSync.question(query),
-  ask: (question: string, opts: NormalizedAskOptions) => Promise<void> | Promise<unknown> = handleQuestion,
+  ask: (question: string, opts: NormalizedAskOptions) => Promise<unknown> = handleQuestion,
 ) => {
   console.log(chalk.cyan('\nInteractive mode. Type "exit" to quit.\n'));
 

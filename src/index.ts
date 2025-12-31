@@ -40,7 +40,7 @@ const handleQuestion = async (question: string, options: { model?: string; searc
 const startInteractiveSession = async (
   options: NormalizedAskOptions,
   prompt: (query: string) => string = readlineSync.question,
-  ask: (question: string, opts: NormalizedAskOptions) => Promise<unknown> = handleQuestion,
+  ask: (question: string, opts: NormalizedAskOptions) => Promise<void> = handleQuestion,
 ) => {
   console.log(chalk.cyan('\nInteractive mode. Type "exit" to quit.\n'));
 
@@ -58,11 +58,15 @@ const startInteractiveSession = async (
       break;
     }
 
-    try {
+    if (ask === handleQuestion) {
       await ask(question, options);
-    } catch (error) {
-      console.error(chalk.red(formatError(error)));
-      process.exitCode = 1;
+    } else {
+      try {
+        await ask(question, options);
+      } catch (error) {
+        console.error(chalk.red(formatError(error)));
+        process.exitCode = 1;
+      }
     }
   }
 };

@@ -45,13 +45,13 @@ const startInteractiveSession = async (
   prompt: (query: string) => string = readlineSync.question,
   ask: (question: string, opts: NormalizedAskOptions) => Promise<void> = handleQuestion,
 ) => {
-  console.log(chalk.cyan('\nInteractive mode. Type "exit" to quit.\n'));
+  console.log(chalk.cyan('\nInteractive mode. Type "exit" or "quit" to leave.\n'));
 
   while (true) {
     const input = prompt('> ');
     const trimmed = input.trim();
     if (!trimmed) {
-      console.log(chalk.yellow('Please enter a question or type "exit" to quit.'));
+      console.log(chalk.yellow('Please enter a question or type "exit"/"quit" to quit.'));
       continue;
     }
 
@@ -65,7 +65,7 @@ const startInteractiveSession = async (
       await ask(trimmed, options);
     } catch (error) {
       console.error(chalk.red(formatError(error)));
-      console.error(chalk.yellow('An error occurred. Please try again or type "exit" to quit.'));
+      console.error(chalk.yellow('An error occurred. Please try again or type "exit"/"quit" to quit.'));
     }
   }
 };

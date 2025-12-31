@@ -21,7 +21,7 @@ const normalizeAskOptions = (options: { model?: string; searchMode?: string }): 
   };
 };
 
-const handleQuestion = async (question: string, options: { model?: string; searchMode?: 'low' | 'medium' | 'high' }) => {
+const handleQuestion = async (question: string, options: NormalizedAskOptions) => {
   const config = loadConfig();
   try {
     const answer = await withSpinner('Contacting Perplexity...', () =>

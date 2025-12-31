@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { startInteractiveSession } from '../src/index.js';
 
 describe('startInteractiveSession', () => {
   it('keeps prompting until an exit command is entered', async () => {
-    const { startInteractiveSession } = await import('../src/index.js');
     const prompts = ['First question', 'Second question', 'exit'];
     const promptFn = vi.fn().mockImplementation(() => prompts.shift() ?? 'exit');
     const ask = vi.fn().mockResolvedValue(undefined);
@@ -16,7 +16,6 @@ describe('startInteractiveSession', () => {
   });
 
   it('ignores blank input and keeps the session alive', async () => {
-    const { startInteractiveSession } = await import('../src/index.js');
     const prompts = ['   ', 'quit'];
     const promptFn = vi.fn().mockImplementation(() => prompts.shift() ?? 'quit');
     const ask = vi.fn().mockResolvedValue(undefined);

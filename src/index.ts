@@ -65,6 +65,7 @@ const startInteractiveSession = async (
       await ask(trimmed, options);
     } catch (error) {
       console.error(chalk.red(formatError(error)));
+      console.error(chalk.yellow('An error occurred. Please try again or type "exit" to quit.'));
     }
   }
 };

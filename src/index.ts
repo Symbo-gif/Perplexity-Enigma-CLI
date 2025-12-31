@@ -8,7 +8,9 @@ import { askPerplexity, formatError, printAnswer, withSpinner } from './perplexi
 const program = new Command();
 program.name('enigma').description('Perplexity - Enigma CLI').version('1.0.0');
 
-const normalizeAskOptions = (options: { model?: string; searchMode?: string }) => {
+type NormalizedAskOptions = { model?: string; searchMode?: 'low' | 'medium' | 'high' };
+
+const normalizeAskOptions = (options: { model?: string; searchMode?: string }): NormalizedAskOptions => {
   const normalizedSearchMode = parseSearchMode(options.searchMode);
   if (options.searchMode && !normalizedSearchMode) {
     console.error(chalk.yellow(`Search mode "${options.searchMode}" is invalid. Using config default.`));
@@ -35,18 +37,49 @@ const handleQuestion = async (question: string, options: { model?: string; searc
   }
 };
 
+const startInteractiveSession = async (
+  options: NormalizedAskOptions,
+  prompt: (query: string) => string = (query) => readlineSync.question(query),
+  ask: (question: string, opts: NormalizedAskOptions) => Promise<void> | Promise<unknown> = handleQuestion,
+) => {
+  console.log(chalk.cyan('\nInteractive mode. Type "exit" to quit.\n'));
+
+  while (true) {
+    const question = prompt('> ');
+    const trimmed = question.trim();
+    if (!trimmed) {
+      console.log(chalk.yellow('Please enter a question or type "exit" to quit.'));
+      continue;
+    }
+
+    const lower = trimmed.toLowerCase();
+    if (lower === 'exit' || lower === 'quit') {
+      console.log(chalk.cyan('Goodbye!'));
+      break;
+    }
+
+    await ask(question, options);
+  }
+};
+
 program
   .argument('[question...]', 'Ask a question (interactive mode if omitted)')
   .option('-m, --model <model>', 'Model to use')
   .option('-s, --search-mode <mode>', 'Search mode: low | medium | high')
   .action(async (questionParts: string[], options) => {
-    const question =
-      questionParts.length > 0 ? questionParts.join(' ') : readlineSync.question('What would you like to ask Perplexity?\n> ');
+    const normalizedOptions = normalizeAskOptions(options);
+
+    if (questionParts.length === 0) {
+      await startInteractiveSession(normalizedOptions);
+      return;
+    }
+
+    const question = questionParts.join(' ');
     if (!question.trim()) {
       console.error(chalk.yellow('No question provided. Exiting.'));
       return;
     }
-    await handleQuestion(question, normalizeAskOptions(options));
+    await handleQuestion(question, normalizedOptions);
   });
 
 program
@@ -75,4 +108,8 @@ program
     }
   });
 
-program.parseAsync(process.argv);
+if (process.env.VITEST !== 'true') {
+  program.parseAsync(process.argv);
+}
+
+export { normalizeAskOptions, handleQuestion, startInteractiveSession };

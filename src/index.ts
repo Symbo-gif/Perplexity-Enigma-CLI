@@ -8,7 +8,7 @@ import { askPerplexity, formatError, printAnswer, withSpinner } from './perplexi
 const program = new Command();
 program.name('enigma').description('Perplexity - Enigma CLI').version('1.0.0');
 
-type NormalizedAskOptions = { model?: string; searchMode?: 'low' | 'medium' | 'high' };
+type NormalizedAskOptions = { model?: string; searchMode?: ReturnType<typeof parseSearchMode> };
 
 const normalizeAskOptions = (options: { model?: string; searchMode?: string }): NormalizedAskOptions => {
   const normalizedSearchMode = parseSearchMode(options.searchMode);

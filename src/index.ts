@@ -10,6 +10,10 @@ program.name('enigma').description('Perplexity - Enigma CLI').version('1.0.0');
 
 type NormalizedAskOptions = { model?: string; searchMode?: ReturnType<typeof parseSearchMode> };
 
+const logFormattedError = (error: unknown) => {
+  console.error(chalk.red(formatError(error)));
+};
+
 const normalizeAskOptions = (options: { model?: string; searchMode?: string }): NormalizedAskOptions => {
   const normalizedSearchMode = parseSearchMode(options.searchMode);
   if (options.searchMode && !normalizedSearchMode) {
@@ -32,7 +36,7 @@ const handleQuestion = async (question: string, options: NormalizedAskOptions) =
     );
     printAnswer(answer);
   } catch (error) {
-    console.error(chalk.red(formatError(error)));
+    logFormattedError(error);
     process.exitCode = 1;
   }
 };
@@ -51,7 +55,7 @@ const startInteractiveSession = async (
     const input = prompt('> ');
     const trimmed = input.trim();
     if (!trimmed) {
-      console.log(chalk.yellow('Please enter a question or type "exit"/"quit" to quit.'));
+      console.log(chalk.yellow('Please enter a question or type "exit" or "quit" to quit.'));
       continue;
     }
 
@@ -64,8 +68,8 @@ const startInteractiveSession = async (
     try {
       await ask(trimmed, options);
     } catch (error) {
-      console.error(chalk.red(formatError(error)));
-      console.error(chalk.yellow('An error occurred. Please try again or type "exit"/"quit" to quit.'));
+      logFormattedError(error);
+      console.error(chalk.yellow('An error occurred. Please try again or type "exit" or "quit" to quit.'));
     }
   }
 };

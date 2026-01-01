@@ -26,6 +26,14 @@
     "windows"
   ],
   "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Symbo-gif/Perplexity-Enigma-CLI.git"
+  },
+  "homepage": "https://github.com/Symbo-gif/Perplexity-Enigma-CLI",
+  "bugs": {
+    "url": "https://github.com/Symbo-gif/Perplexity-Enigma-CLI/issues"
+  },
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.0",

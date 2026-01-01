@@ -55,4 +55,16 @@ output:
     expect(config.api.base_url).toBe('https://example.test');
     expect(config.output.format).toBe('json');
   });
+
+  it('gracefully handles malformed YAML', async () => {
+    const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'enigma-config-bad-'));
+    const configPath = path.join(baseDir, '.pplxrc');
+    fs.writeFileSync(configPath, 'api: key: bad'); // invalid YAML
+
+    const { loadConfig, defaultConfig } = await import('../src/config.js');
+    const config = loadConfig(baseDir);
+
+    expect(config.api.base_url).toBe(defaultConfig.api.base_url);
+    expect(config.models.default).toBe(defaultConfig.models.default);
+  });
 });

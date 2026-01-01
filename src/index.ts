@@ -37,9 +37,12 @@ const ensureApiKeyInteractive = (configPath: string): string => {
   if (!key.trim()) {
     throw new Error('API key is required. Run "enigma config" to set it later.');
   }
+  if (!key.trim().startsWith('pplx-')) {
+    throw new Error('That key does not look right. It should start with "pplx-". Please try again.');
+  }
 
   const envPath = path.join(process.cwd(), '.env');
-  fs.writeFileSync(envPath, `PPLX_API_KEY=${key.trim()}\n`, 'utf-8');
+  fs.writeFileSync(envPath, `PPLX_API_KEY=${key.trim()}\n`, { encoding: 'utf-8', mode: 0o600 });
   const currentConfig = loadConfig();
   const updatedConfig = { ...currentConfig, api: { ...currentConfig.api, key: key.trim() } };
   saveConfig(updatedConfig, configPath);
@@ -55,12 +58,8 @@ const handleQuestion = async (question: string, options: NormalizedAskOptions) =
   const apiKey = process.env.PPLX_API_KEY ?? config.api.key;
   let effectiveConfig = config;
   if (!apiKey) {
-    try {
-      const newKey = ensureApiKeyInteractive(configPath);
-      effectiveConfig = { ...config, api: { ...config.api, key: newKey } };
-    } catch (err) {
-      throw err;
-    }
+    const newKey = ensureApiKeyInteractive(configPath);
+    effectiveConfig = { ...config, api: { ...config.api, key: newKey } };
   }
   try {
     const answer = await withSpinner('Contacting Perplexity...', () =>

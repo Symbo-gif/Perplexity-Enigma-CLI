@@ -60,7 +60,7 @@ describe('askPerplexity', () => {
       api: { ...defaultConfig.api, key: 'pplx-test' },
     };
 
-    const answer = await askPerplexity('test question', config, { model: 'invalid-model' as any });
+    const answer = await askPerplexity('test question', config, { model: 'invalid-model' });
 
     expect(answer).toBe('hello world');
     expect((axios as any).default.post).toHaveBeenCalledWith(

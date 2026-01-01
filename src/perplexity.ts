@@ -1,7 +1,7 @@
 import axios from 'axios';
 import Ora from 'ora';
 import chalk from 'chalk';
-import { EnigmaConfig, resolveApiKey } from './config.js';
+import { EnigmaConfig, resolveApiKey, validateModelName, AVAILABLE_MODELS } from './config.js';
 
 export type AskOptions = {
   model?: string;
@@ -15,11 +15,12 @@ export const askPerplexity = async (
 ): Promise<string> => {
   const apiKey = resolveApiKey(config);
   if (!apiKey) {
-    throw new Error('Perplexity API key is not configured. Set PPLX_API_KEY or update .pplxrc.');
+    throw new Error('API key not found. Run "enigma config" to set it up.');
   }
 
+  const validatedModel = validateModelName(options.model, config).model;
   const payload = {
-    model: options.model ?? config.models.default,
+    model: validatedModel,
     messages: [{ role: 'user', content: question }],
     stream: false,
     search_mode: options.searchMode ?? config.research.search_mode,
@@ -61,6 +62,15 @@ export const formatError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
     const detail = error.response?.data?.error ?? error.message;
+    if (!status && error.code) {
+      return `Network error (${error.code}). Please check your connection and try again.`;
+    }
+    if (status === 401 || status === 403) {
+      return 'API key invalid or unauthorized. Run "enigma config" to update your key.';
+    }
+    if (status === 404) {
+      return 'Endpoint not found. Please try again in a moment.';
+    }
     return status ? `API error (${status}): ${detail}` : `API error: ${detail}`;
   }
   if (error instanceof Error) {
@@ -77,3 +87,6 @@ export const printAnswer = (answer: string) => {
   console.log(answer);
   console.log('\n');
 };
+
+export const availableModelsMessage = () =>
+  `Available models: ${AVAILABLE_MODELS.join(', ')}. Set a model with --model or in .pplxrc.`;

@@ -35,4 +35,27 @@ describe('startInteractiveSession', () => {
     expect(promptFn).toHaveBeenCalledTimes(2);
     expect(ask).not.toHaveBeenCalled();
   });
+
+  it('shows help and exits on :exit', async () => {
+    const prompts = [':help', ':exit'];
+    const promptFn = vi.fn().mockImplementation(() => prompts.shift()!);
+    const ask = vi.fn().mockResolvedValue(undefined);
+
+    await startInteractiveSession({}, promptFn, ask);
+
+    expect(promptFn).toHaveBeenCalledTimes(2);
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  it('handles Ctrl+C gracefully', async () => {
+    const promptFn = vi.fn().mockImplementation(() => {
+      throw new Error('SIGINT');
+    });
+    const ask = vi.fn().mockResolvedValue(undefined);
+
+    await startInteractiveSession({}, promptFn, ask);
+
+    expect(promptFn).toHaveBeenCalledTimes(1);
+    expect(ask).not.toHaveBeenCalled();
+  });
 });

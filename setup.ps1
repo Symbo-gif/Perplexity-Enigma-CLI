@@ -123,14 +123,20 @@ function Add-EnigmaToProfile {
     # Create profile if it doesn't exist
     if (-not (Test-Path $profilePath)) {
         New-Item -ItemType File -Path $profilePath -Force | Out-Null
+        Write-Step "Created PowerShell profile at $profilePath"
     }
 
     $enigmaPath = Join-Path $ScriptDir "bin" "enigma.ps1"
 
     # Check if already added
-    $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
-    if ($profileContent -and $profileContent.Contains("Perplexity - Enigma CLI")) {
-        Write-Warn "Enigma is already in your PowerShell profile"
+    if (Test-Path $profilePath) {
+        $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+    }
+    else {
+        $profileContent = ""
+    }
+    if ($profileContent -and ($profileContent -match "function\s+enigma")) {
+        Write-Warn "Enigma function already exists in your PowerShell profile. Skipping duplicate entry."
         return
     }
 
@@ -256,13 +262,13 @@ function Main {
     Write-Host ""
     Write-Host "=================================================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Setup Complete!" -ForegroundColor Green
+    Write-Host "✓ Enigma CLI installed successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "To start using Enigma:"
     Write-Host ""
     Write-Host "  1. Restart PowerShell (or run: . `$PROFILE)" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "  2. Type 'enigma' to start the interactive CLI" -ForegroundColor Cyan
+    Write-Host "  2. Run 'enigma' to get started" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Quick commands:"
     Write-Host "  enigma                    - Interactive mode" -ForegroundColor Cyan

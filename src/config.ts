@@ -77,6 +77,16 @@ export const defaultConfig: EnigmaConfig = {
   },
 };
 
+export const AVAILABLE_MODELS = [
+  'sonar',
+  'sonar-pro',
+  'sonar-reasoning',
+  'sonar-reasoning-pro',
+  'sonar-reasoning-large',
+  'sonar-deep-research',
+  'sonar-large',
+];
+
 const CONFIG_FILE = '.pplxrc';
 type EnvKey =
   | keyof ApiConfig
@@ -161,7 +171,8 @@ const loadFileConfig = (baseDir: string): Partial<EnigmaConfig> => {
   try {
     return YAML.parse(raw) ?? {};
   } catch (err) {
-    throw new Error(`Unable to parse ${CONFIG_FILE}: ${(err as Error).message}`);
+    console.error(`Unable to parse ${CONFIG_FILE}: ${(err as Error).message}. Using defaults.`);
+    return {};
   }
 };
 
@@ -240,4 +251,15 @@ export const resolveApiKey = (config: EnigmaConfig): string | undefined => {
 export const saveConfig = (config: EnigmaConfig, targetPath = path.join(process.cwd(), CONFIG_FILE)) => {
   const yaml = YAML.stringify(config);
   fs.writeFileSync(targetPath, yaml, 'utf-8');
+};
+
+export const validateModelName = (model: string | undefined, config: EnigmaConfig): { model: string; warned: boolean } => {
+  if (!model) return { model: config.models.default, warned: false };
+  if (AVAILABLE_MODELS.includes(model)) return { model, warned: false };
+  console.error(
+    `Invalid model "${model}". Available models: ${AVAILABLE_MODELS.join(
+      ', ',
+    )}. Using default: ${config.models.default}`,
+  );
+  return { model: config.models.default, warned: true };
 };

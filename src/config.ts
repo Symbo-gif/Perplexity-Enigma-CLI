@@ -5,11 +5,16 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// API key validation constants
+const API_KEY_PREFIX = 'pplx-';
+const API_KEY_MIN_LENGTH = 37;  // prefix (5) + minimum 32 chars for the key part
+const API_KEY_MAX_LENGTH = 128; // reasonable upper bound for key length
+
 /**
  * Validates API key format. Perplexity API keys:
  * - Must start with 'pplx-'
  * - Followed by 32-64 alphanumeric characters (including hyphens in some formats)
- * - Total length between 37-69 characters
+ * - Total length between 37-128 characters
  */
 export const validateApiKeyFormat = (key: string): { valid: boolean; message?: string } => {
   if (!key || typeof key !== 'string') {
@@ -18,21 +23,20 @@ export const validateApiKeyFormat = (key: string): { valid: boolean; message?: s
 
   const trimmedKey = key.trim();
   
-  if (!trimmedKey.startsWith('pplx-')) {
-    return { valid: false, message: 'API key must start with "pplx-"' };
+  if (!trimmedKey.startsWith(API_KEY_PREFIX)) {
+    return { valid: false, message: `API key must start with "${API_KEY_PREFIX}"` };
   }
 
-  // pplx- prefix (5 chars) + at least 32 alphanumeric/hyphen chars
-  if (trimmedKey.length < 37) {
+  if (trimmedKey.length < API_KEY_MIN_LENGTH) {
     return { valid: false, message: 'API key is too short' };
   }
 
-  if (trimmedKey.length > 128) {
+  if (trimmedKey.length > API_KEY_MAX_LENGTH) {
     return { valid: false, message: 'API key is too long' };
   }
 
-  // Check that the part after 'pplx-' contains only valid characters
-  const keyPart = trimmedKey.slice(5);
+  // Check that the part after prefix contains only valid characters
+  const keyPart = trimmedKey.slice(API_KEY_PREFIX.length);
   if (!/^[a-zA-Z0-9_-]+$/.test(keyPart)) {
     return { valid: false, message: 'API key contains invalid characters' };
   }

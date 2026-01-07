@@ -32,7 +32,7 @@ describe('askPerplexity', () => {
         messages: [{ role: 'user', content: 'test question' }],
         stream: false,
         search_mode: 'medium',
-        // Agent config now wired to API
+        // Agent configuration parameters (temperature, max_tokens, top_p) are now included in the API payload
         temperature: 0.3,
         max_tokens: 4096,
         top_p: 0.9,

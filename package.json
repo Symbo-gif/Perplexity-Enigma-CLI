@@ -68,6 +68,7 @@
     "dist",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "VERSIONING.md"
   ]
 }

@@ -12,7 +12,7 @@ vi.mock('axios', () => {
 });
 
 describe('askPerplexity', () => {
-  it('builds the correct request payload', async () => {
+  it('builds the correct request payload with agent config', async () => {
     const axios = await import('axios');
     const { askPerplexity } = await import('../src/perplexity.js');
     const { defaultConfig } = await import('../src/config.js');
@@ -32,6 +32,10 @@ describe('askPerplexity', () => {
         messages: [{ role: 'user', content: 'test question' }],
         stream: false,
         search_mode: 'medium',
+        // Agent configuration parameters (temperature, max_tokens, top_p) are now included in the API payload
+        temperature: 0.3,
+        max_tokens: 4096,
+        top_p: 0.9,
       },
       expect.objectContaining({
         headers: expect.objectContaining({
@@ -69,6 +73,85 @@ describe('askPerplexity', () => {
       expect.any(Object),
     );
   });
+
+  it('returns JSON when content is not a string', async () => {
+    const axios = await import('axios');
+    vi.mocked((axios as any).default.post).mockResolvedValueOnce({
+      data: { choices: [{ message: { content: { nested: 'object' } } }] },
+    });
+    
+    const { askPerplexity } = await import('../src/perplexity.js');
+    const { defaultConfig } = await import('../src/config.js');
+    const config = {
+      ...defaultConfig,
+      api: { ...defaultConfig.api, key: 'pplx-test' },
+    };
+
+    const answer = await askPerplexity('test question', config);
+
+    expect(answer).toContain('choices');
+  });
+});
+
+describe('buildApiPayload', () => {
+  it('includes agent config parameters', async () => {
+    const { buildApiPayload } = await import('../src/perplexity.js');
+    const { defaultConfig } = await import('../src/config.js');
+
+    const customConfig = {
+      ...defaultConfig,
+      agent: { ...defaultConfig.agent, temperature: 0.7, max_tokens: 2048, top_p: 0.95 },
+    };
+
+    const payload = buildApiPayload('test', customConfig, {}, false);
+
+    expect(payload.temperature).toBe(0.7);
+    expect(payload.max_tokens).toBe(2048);
+    expect(payload.top_p).toBe(0.95);
+  });
+
+  it('uses search mode from options if provided', async () => {
+    const { buildApiPayload } = await import('../src/perplexity.js');
+    const { defaultConfig } = await import('../src/config.js');
+
+    const payload = buildApiPayload('test', defaultConfig, { searchMode: 'high' }, false);
+
+    expect(payload.search_mode).toBe('high');
+  });
+});
+
+describe('parseSSELine', () => {
+  it('extracts content from valid SSE data', async () => {
+    const { parseSSELine } = await import('../src/perplexity.js');
+    
+    const line = 'data: {"choices":[{"delta":{"content":"Hello"}}]}';
+    expect(parseSSELine(line)).toBe('Hello');
+  });
+
+  it('returns done for [DONE] message', async () => {
+    const { parseSSELine } = await import('../src/perplexity.js');
+    
+    expect(parseSSELine('data: [DONE]')).toBe('done');
+  });
+
+  it('returns null for empty lines', async () => {
+    const { parseSSELine } = await import('../src/perplexity.js');
+    
+    expect(parseSSELine('')).toBe(null);
+    expect(parseSSELine('   ')).toBe(null);
+  });
+
+  it('returns null for SSE comments', async () => {
+    const { parseSSELine } = await import('../src/perplexity.js');
+    
+    expect(parseSSELine(': keep-alive')).toBe(null);
+  });
+
+  it('handles malformed JSON gracefully', async () => {
+    const { parseSSELine } = await import('../src/perplexity.js');
+    
+    expect(parseSSELine('data: {invalid json}')).toBe(null);
+  });
 });
 
 describe('formatError', () => {
@@ -82,5 +165,93 @@ describe('formatError', () => {
     const { formatError } = await import('../src/perplexity.js');
     const message = formatError({ isAxiosError: true, code: 'ETIMEDOUT', message: 'timeout' });
     expect(message).toMatch(/Network error/);
+  });
+
+  it('returns actionable message for 429 rate limit', async () => {
+    const { formatError } = await import('../src/perplexity.js');
+    const message = formatError({ isAxiosError: true, response: { status: 429 }, message: 'too many requests' });
+    expect(message).toMatch(/Rate limit exceeded/);
+  });
+
+  it('returns actionable message for server errors', async () => {
+    const { formatError } = await import('../src/perplexity.js');
+    const message = formatError({ isAxiosError: true, response: { status: 503 }, message: 'service unavailable' });
+    expect(message).toMatch(/Server error/);
+  });
+
+  it('handles plain Error objects', async () => {
+    const { formatError } = await import('../src/perplexity.js');
+    const message = formatError(new Error('Something went wrong'));
+    expect(message).toBe('Something went wrong');
+  });
+
+  it('handles string errors', async () => {
+    const { formatError } = await import('../src/perplexity.js');
+    const message = formatError('An error occurred');
+    expect(message).toBe('An error occurred');
+  });
+
+  it('handles unknown error types', async () => {
+    const { formatError } = await import('../src/perplexity.js');
+    const message = formatError({ custom: 'error' });
+    expect(message).toBe('{"custom":"error"}');
+  });
+
+  it('handles 404 errors', async () => {
+    const { formatError } = await import('../src/perplexity.js');
+    const message = formatError({ isAxiosError: true, response: { status: 404 }, message: 'not found' });
+    expect(message).toMatch(/Endpoint not found/);
+  });
+
+  it('handles general API errors with status', async () => {
+    const { formatError } = await import('../src/perplexity.js');
+    const message = formatError({ isAxiosError: true, response: { status: 400, data: { error: 'Bad Request' } }, message: 'bad' });
+    expect(message).toMatch(/API error \(400\)/);
+  });
+
+  it('handles API errors without status', async () => {
+    const { formatError } = await import('../src/perplexity.js');
+    const message = formatError({ isAxiosError: true, message: 'unknown error' });
+    expect(message).toBe('API error: unknown error');
+  });
+});
+
+describe('withSpinner', () => {
+  it('succeeds and stops spinner on success', async () => {
+    const { withSpinner } = await import('../src/perplexity.js');
+    
+    const result = await withSpinner('Test', async () => 'success');
+    expect(result).toBe('success');
+  });
+
+  it('fails and stops spinner on error', async () => {
+    const { withSpinner } = await import('../src/perplexity.js');
+    
+    await expect(withSpinner('Test', async () => {
+      throw new Error('Test error');
+    })).rejects.toThrow('Test error');
+  });
+});
+
+describe('printAnswer', () => {
+  it('prints formatted answer', async () => {
+    const { printAnswer } = await import('../src/perplexity.js');
+    const consoleSpy = vi.spyOn(console, 'log');
+    
+    printAnswer('Test answer');
+    
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('availableModelsMessage', () => {
+  it('returns list of available models', async () => {
+    const { availableModelsMessage } = await import('../src/perplexity.js');
+    
+    const message = availableModelsMessage();
+    expect(message).toContain('sonar');
+    expect(message).toContain('sonar-pro');
+    expect(message).toContain('--model');
   });
 });

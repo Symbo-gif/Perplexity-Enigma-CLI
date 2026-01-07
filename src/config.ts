@@ -5,6 +5,49 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+/**
+ * Validates API key format. Perplexity API keys:
+ * - Must start with 'pplx-'
+ * - Followed by 32-64 alphanumeric characters (including hyphens in some formats)
+ * - Total length between 37-69 characters
+ */
+export const validateApiKeyFormat = (key: string): { valid: boolean; message?: string } => {
+  if (!key || typeof key !== 'string') {
+    return { valid: false, message: 'API key is required' };
+  }
+
+  const trimmedKey = key.trim();
+  
+  if (!trimmedKey.startsWith('pplx-')) {
+    return { valid: false, message: 'API key must start with "pplx-"' };
+  }
+
+  // pplx- prefix (5 chars) + at least 32 alphanumeric/hyphen chars
+  if (trimmedKey.length < 37) {
+    return { valid: false, message: 'API key is too short' };
+  }
+
+  if (trimmedKey.length > 128) {
+    return { valid: false, message: 'API key is too long' };
+  }
+
+  // Check that the part after 'pplx-' contains only valid characters
+  const keyPart = trimmedKey.slice(5);
+  if (!/^[a-zA-Z0-9_-]+$/.test(keyPart)) {
+    return { valid: false, message: 'API key contains invalid characters' };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Writes content to a file with secure permissions (mode 0600).
+ * This ensures sensitive files like .env and .pplxrc are readable only by the owner.
+ */
+export const writeSecureFile = (filePath: string, content: string): void => {
+  fs.writeFileSync(filePath, content, { encoding: 'utf-8', mode: 0o600 });
+};
+
 export type ApiConfig = {
   key?: string;
   base_url: string;
@@ -123,12 +166,12 @@ const envMap: Record<EnvKey, string> = {
   verbose: 'PPLX_VERBOSE',
 };
 
-const parseBoolean = (value: string | undefined): boolean | undefined => {
+export const parseBoolean = (value: string | undefined): boolean | undefined => {
   if (value === undefined) return undefined;
   return value === 'true' || value === '1';
 };
 
-const parseNumber = (value: string | undefined): number | undefined => {
+export const parseNumber = (value: string | undefined): number | undefined => {
   if (value === undefined) return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
@@ -140,13 +183,13 @@ export const parseSearchMode = (value: string | undefined): ResearchConfig['sear
   return undefined;
 };
 
-const parseOutputFormat = (value: string | undefined): OutputConfig['format'] | undefined => {
+export const parseOutputFormat = (value: string | undefined): OutputConfig['format'] | undefined => {
   if (!value) return undefined;
   if (value === 'markdown' || value === 'json' || value === 'plain') return value;
   return undefined;
 };
 
-const deepMerge = <T>(base: T, override: Partial<T>): T => {
+export const deepMerge = <T>(base: T, override: Partial<T>): T => {
   if (typeof override !== 'object' || override === null) return base;
   const result: any = Array.isArray(base) ? [...(base as any)] : { ...(base as any) };
   for (const [key, value] of Object.entries(override)) {
@@ -250,7 +293,7 @@ export const resolveApiKey = (config: EnigmaConfig): string | undefined => {
 
 export const saveConfig = (config: EnigmaConfig, targetPath = path.join(process.cwd(), CONFIG_FILE)) => {
   const yaml = YAML.stringify(config);
-  fs.writeFileSync(targetPath, yaml, 'utf-8');
+  writeSecureFile(targetPath, yaml);
 };
 
 export const validateModelName = (model: string | undefined, config: EnigmaConfig): { model: string; warned: boolean } => {

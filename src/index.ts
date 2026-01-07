@@ -4,13 +4,13 @@ import path from 'path';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import readlineSync from 'readline-sync';
-import { loadConfig, parseSearchMode, saveConfig } from './config.js';
-import { askPerplexity, availableModelsMessage, formatError, printAnswer, withSpinner } from './perplexity.js';
+import { loadConfig, parseSearchMode, saveConfig, validateApiKeyFormat, writeSecureFile } from './config.js';
+import { askPerplexity, askPerplexityStreaming, availableModelsMessage, formatError, printAnswer, withSpinner } from './perplexity.js';
 
 const program = new Command();
 program.name('enigma').description('Perplexity - Enigma CLI').version('1.0.0');
 
-type NormalizedAskOptions = { model?: string; searchMode?: ReturnType<typeof parseSearchMode> };
+type NormalizedAskOptions = { model?: string; searchMode?: ReturnType<typeof parseSearchMode>; stream?: boolean };
 
 const logFormattedError = (error: unknown) => {
   console.error(chalk.red(formatError(error)));
@@ -18,7 +18,7 @@ const logFormattedError = (error: unknown) => {
 
 const EXIT_INSTRUCTIONS = 'Type "exit" or "quit" to leave.';
 
-const normalizeAskOptions = (options: { model?: string; searchMode?: string }): NormalizedAskOptions => {
+export const normalizeAskOptions = (options: { model?: string; searchMode?: string; stream?: boolean }): NormalizedAskOptions => {
   const normalizedSearchMode = parseSearchMode(options.searchMode);
   if (options.searchMode && !normalizedSearchMode) {
     console.error(chalk.yellow(`Search mode "${options.searchMode}" is invalid. Using config default.`));
@@ -26,10 +26,11 @@ const normalizeAskOptions = (options: { model?: string; searchMode?: string }): 
   return {
     model: options.model,
     searchMode: normalizedSearchMode,
+    stream: options.stream,
   };
 };
 
-const ensureApiKeyInteractive = (configPath: string): string => {
+export const ensureApiKeyInteractive = (configPath: string): string => {
   console.log(chalk.yellow('\nNo Perplexity API key found.'));
   const key = readlineSync.question('Paste your PPLX API key (starts with pplx-), or press Enter to cancel: ', {
     hideEchoBack: true,
@@ -37,17 +38,19 @@ const ensureApiKeyInteractive = (configPath: string): string => {
   if (!key.trim()) {
     throw new Error('API key is required. Run "enigma config" to set it later.');
   }
-  if (!key.trim().startsWith('pplx-')) {
-    throw new Error('That key does not look right. It should start with "pplx-". Please try again.');
+  
+  const validation = validateApiKeyFormat(key);
+  if (!validation.valid) {
+    throw new Error(`Invalid API key: ${validation.message}. Please try again.`);
   }
 
   const envPath = path.join(process.cwd(), '.env');
-  fs.writeFileSync(envPath, `PPLX_API_KEY=${key.trim()}\n`, { encoding: 'utf-8', mode: 0o600 });
+  writeSecureFile(envPath, `PPLX_API_KEY=${key.trim()}\n`);
   const currentConfig = loadConfig();
   const updatedConfig = { ...currentConfig, api: { ...currentConfig.api, key: key.trim() } };
   saveConfig(updatedConfig, configPath);
 
-  console.log(chalk.green('\nSaved your API key to .env and .pplxrc.'));
+  console.log(chalk.green('\nSaved your API key to .env and .pplxrc (with secure permissions).'));
   console.log(chalk.cyan('Try: enigma "What can you do?"\n'));
   return key.trim();
 };
@@ -61,14 +64,28 @@ const handleQuestion = async (question: string, options: NormalizedAskOptions) =
     const newKey = ensureApiKeyInteractive(configPath);
     effectiveConfig = { ...config, api: { ...config.api, key: newKey } };
   }
+  
+  // Determine if streaming should be used (CLI option overrides config)
+  const useStreaming = options.stream !== undefined ? options.stream : effectiveConfig.output.stream;
+  
   try {
-    const answer = await withSpinner('Contacting Perplexity...', () =>
-      askPerplexity(question, effectiveConfig, {
+    if (useStreaming) {
+      // Use streaming mode - no spinner since we'll be progressively outputting
+      console.log(chalk.greenBright('\n=== Perplexity ===\n'));
+      await askPerplexityStreaming(question, effectiveConfig, {
         model: options.model,
         searchMode: options.searchMode,
-      }),
-    );
-    printAnswer(answer);
+      });
+      console.log('\n');
+    } else {
+      const answer = await withSpinner('Contacting Perplexity...', () =>
+        askPerplexity(question, effectiveConfig, {
+          model: options.model,
+          searchMode: options.searchMode,
+        }),
+      );
+      printAnswer(answer);
+    }
   } catch (error) {
     logFormattedError(error);
     process.exitCode = 1;
@@ -127,6 +144,8 @@ program
   .argument('[question...]', 'Ask a question (interactive mode if omitted)')
   .option('-m, --model <model>', 'Model to use')
   .option('-s, --search-mode <mode>', 'Search mode: low | medium | high')
+  .option('--stream', 'Enable streaming output')
+  .option('--no-stream', 'Disable streaming output')
   .addHelpText(
     'after',
     `
@@ -134,6 +153,7 @@ Examples:
   enigma                         # Start interactive mode
   enigma "How do I deploy?"      # Quick answer
   enigma --model sonar-pro "Debug this test"
+  enigma --stream "Explain this"  # Stream the response
 `,
   )
   .action(async (questionParts: string[], options) => {
@@ -158,11 +178,14 @@ program
   .argument('<question...>', 'Question to ask')
   .option('-m, --model <model>', 'Model to use')
   .option('-s, --search-mode <mode>', 'Search mode: low | medium | high')
+  .option('--stream', 'Enable streaming output')
+  .option('--no-stream', 'Disable streaming output')
   .addHelpText(
     'after',
     `
 Example:
   enigma ask "What is PowerShell profile?"
+  enigma ask --stream "Explain async programming"
 `,
   )
   .action(async (questionParts: string[], options) => {
@@ -186,12 +209,12 @@ Examples:
     const config = loadConfig();
     console.log(chalk.cyan('\nResolved configuration:'));
     console.log(JSON.stringify(config, null, 2));
-    console.log(chalk.yellow('Streaming is forced off for now.'));
+    console.log(chalk.cyan(`Streaming: ${config.output.stream ? 'enabled' : 'disabled'} (use --stream or --no-stream to override)`));
 
     if (options.save) {
       const targetPath = path.join(process.cwd(), '.pplxrc');
       saveConfig(config, targetPath);
-      console.log(chalk.green(`Configuration written to ${targetPath}`));
+      console.log(chalk.green(`Configuration written to ${targetPath} (with secure permissions)`));
     }
   });
 
@@ -199,4 +222,4 @@ if (process.env.NODE_ENV !== 'test') {
   program.parseAsync(process.argv);
 }
 
-export { normalizeAskOptions, handleQuestion, startInteractiveSession };
+export { handleQuestion, startInteractiveSession };

@@ -13,7 +13,9 @@
     "test": "vitest",
     "start": "node dist/index.js",
     "lint": "eslint src/**/*.ts",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run clean && npm run build && npm test",
+    "version": "npm run build"
   },
   "keywords": [
     "perplexity",
@@ -58,5 +60,15 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "VERSIONING.md"
+  ]
 }

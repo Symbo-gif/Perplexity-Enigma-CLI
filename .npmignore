@@ -1,0 +1,39 @@
+# Source files
+src/
+tests/
+*.test.ts
+
+# Config files
+.env
+.env.example
+.pplxrc
+.pplxrc.example
+tsconfig.json
+vitest.config.ts
+
+# Scripts
+setup.ps1
+add-to-profile.ps1
+create-shortcut.ps1
+
+# Development
+.github/
+.git/
+.gitignore
+node_modules/
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (keep essential ones)
+VERSIONING.md

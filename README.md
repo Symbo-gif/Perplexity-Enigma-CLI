@@ -90,6 +90,19 @@ npm link   # to try the global `enigma` command locally
 
 ---
 
+## Releases & Versioning
+
+This project follows [Semantic Versioning](https://semver.org/). See [CHANGELOG.md](./CHANGELOG.md) for version history and [VERSIONING.md](./VERSIONING.md) for the complete release process.
+
+### Latest Release
+Check the [Releases page](https://github.com/Symbo-gif/Perplexity-Enigma-CLI/releases) for the latest version and release notes.
+
+### CI/CD
+- **Continuous Integration**: Automated tests run on every push and PR
+- **Automated Releases**: GitHub releases and npm publishes are automated via tags
+
+---
+
 ## FAQ (Windows)
 - **Where do files live?** In this folder; profile is at `C:\\Users\\<you>\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1`.
 - **Do I need Git?** Only if running from source. From npm, just `npm install -g perplexity-enigma`.

@@ -202,13 +202,9 @@ function Test-ApiKey {
 
     Write-Warn "No API key configured"
     Write-Host ""
-    Write-Host "   To set your API key, use one of these methods:"
-    Write-Host ""
-    Write-Host "   1. Environment variable (recommended):"
-    Write-Host '      $env:PPLX_API_KEY = "pplx-your-key-here"' -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "   2. Or use the CLI to set it:"
-    Write-Host '      enigma config set api.key pplx-your-key-here' -ForegroundColor Cyan
+    Write-Host "   To set your API key, run enigma and enter it when prompted,"
+    Write-Host "   or manually create a .env file with:"
+    Write-Host '      PPLX_API_KEY=pplx-your-key-here' -ForegroundColor Cyan
     Write-Host ""
     Write-Host "   Get your API key at: https://www.perplexity.ai/settings/api"
     Write-Host ""
@@ -272,9 +268,9 @@ function Main {
     Write-Host ""
     Write-Host "Quick commands:"
     Write-Host "  enigma                    - Interactive mode" -ForegroundColor Cyan
-    Write-Host '  enigma ask "question"     - Quick question' -ForegroundColor Cyan
-    Write-Host "  enigma review file.ts     - Code review" -ForegroundColor Cyan
-    Write-Host '  enigma research "topic"   - Deep research' -ForegroundColor Cyan
+    Write-Host '  enigma "question"         - Quick question' -ForegroundColor Cyan
+    Write-Host '  enigma ask "question"     - Ask a question' -ForegroundColor Cyan
+    Write-Host "  enigma config             - View configuration" -ForegroundColor Cyan
     Write-Host "  enigma --help             - Show all commands" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "=================================================================" -ForegroundColor Green

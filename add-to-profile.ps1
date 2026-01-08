@@ -10,7 +10,8 @@ if (-not (Test-Path $profilePath)) {
     New-Item -ItemType File -Path $profilePath -Force | Out-Null
 }
 
-$enigmaPath = "c:\dev\ENIGMA\pplx-pro-cli\bin\enigma.ps1"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$enigmaPath = Join-Path $ScriptDir "bin" "enigma.ps1"
 $functionDef = @"
 
 # Perplexity - Enigma CLI

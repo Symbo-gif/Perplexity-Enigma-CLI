@@ -13,11 +13,13 @@ api:
 # Model Selection
 # ============================================================================
 # Available models:
-#   - sonar           : Fast, lightweight (low cost)
-#   - sonar-pro       : Balanced reasoning + search (medium cost)
-#   - sonar-reasoning : Chain-of-thought reasoning (medium cost)
-#   - sonar-reasoning-pro : Advanced reasoning (higher cost)
-#   - sonar-deep-research : Comprehensive research (higher cost, 30-60s)
+#   - sonar                   : Fast, lightweight (low cost)
+#   - sonar-pro               : Balanced reasoning + search (medium cost)
+#   - sonar-reasoning         : Chain-of-thought reasoning (medium cost)
+#   - sonar-reasoning-pro     : Advanced reasoning (higher cost)
+#   - sonar-reasoning-large   : Large context reasoning (higher cost)
+#   - sonar-deep-research     : Comprehensive research (higher cost, 30-60s)
+#   - sonar-large             : Large context model (higher cost)
 
 models:
   default: "sonar-pro"                     # Default model for general queries
@@ -29,69 +31,25 @@ models:
 # ============================================================================
 # Agent Behavior
 # ============================================================================
+# These parameters control how the AI model behaves when generating responses
 agent:
-  max_iterations: 10                       # Max tool-use loops per query
+  max_iterations: 10                       # Max tool-use loops per query (not used yet)
   temperature: 0.3                         # 0.0-2.0, lower = more deterministic
   max_tokens: 4096                         # Max tokens in response
-  top_p: 0.9                               # Nucleus sampling parameter
+  top_p: 0.9                               # Nucleus sampling parameter (0.0-1.0)
 
 # ============================================================================
-# Workspace Settings
-# ============================================================================
-workspace:
-  root: "./"                               # Workspace root directory
-  gitignore_enabled: true                  # Respect .gitignore patterns
-  max_file_size_mb: 10                     # Skip files larger than this
-  exclude_patterns:                        # Additional patterns to exclude
-    - "node_modules/**"
-    - ".git/**"
-    - "dist/**"
-    - "build/**"
-    - "*.pyc"
-    - "__pycache__/**"
-    - ".env"
-    - ".env.*"
-    - "*.log"
-    - "coverage/**"
-    - ".nyc_output/**"
-    - ".cache/**"
-
-# ============================================================================
-# Search & Research
+# Search & Research Configuration
 # ============================================================================
 research:
-  search_mode: "medium"                    # low | medium | high
-  include_citations: true                  # Include source citations
-  focus_on_recent: true                    # Prefer recent sources
-  date_filter: null                        # Filter by date (e.g., "2025-01-01")
+  search_mode: "medium"                    # low | medium | high - controls search depth
+  include_citations: true                  # Include source citations in responses
+  focus_on_recent: true                    # Prefer recent sources when searching
 
 # ============================================================================
-# Output Formatting
+# Output Configuration
 # ============================================================================
 output:
   format: "markdown"                       # markdown | json | plain
-  stream: true                             # Stream responses in real-time
+  stream: false                            # Stream responses in real-time (use --stream flag to override)
   verbose: false                           # Show debug information
-
-# ============================================================================
-# Enabled Tools
-# ============================================================================
-tools:
-  enabled:
-    - file_read                            # Read file contents
-    - file_write                           # Write/create files
-    - file_search                          # Search for files by name
-    - web_search                           # Web search via Perplexity
-    - list_directory                       # List directory contents
-    - file_diff                            # Generate file diffs
-    - git_operations                       # Git commands (status, diff, log)
-    # - code_execution                     # Execute code (disabled by default)
-
-# ============================================================================
-# Context Management
-# ============================================================================
-context:
-  max_files_in_context: 5                  # Max files to include in context
-  max_tokens_for_context: 8000             # Token budget for context
-  include_file_tree: true                  # Include workspace file tree
-  include_git_status: true                 # Include git status information
